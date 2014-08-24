@@ -1,0 +1,48 @@
+# Practical Machine Learning Project
+In this project, data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants will be used to determine whether they performed barbell lifts correctly and incorrectly in 5 different ways.
+
+## Data Pre-processing
+Load data files and necessary packages.
+```{r warning=FALSE, results='hide'}
+library(caret)
+library(C50)
+pml.training <- read.csv("pml-training.csv",na.strings=c("NA",""), header=TRUE)
+pml.testing <- read.csv("pml-testing.csv",na.strings=c("NA",""), header=TRUE)
+```
+
+Remove the first 8 columns, which are uninmportant for our analysis, and any column with missing values.
+```{r cache=TRUE, warning=FALSE}
+containsNA <- rep(TRUE,8)
+for(i in 9:160)
+  containsNA[i] <- any(is.na(pml.training[,i])) || any(is.na(pml.testing[,i]))
+pml.training <- pml.training[,!containsNA]
+pml.testing <- pml.testing[,!containsNA]
+```
+
+## Building the classifier
+We are going to build a decision tree classifier using the C5.0 ruleset to predict the activity. A decision tree was selected because the model is easy to interpret and the C5.0 ruleset was selected because it is fast, builds small decision trees and selects the variables that best split the classes. 
+
+Cross-validation will be used to train and test the classifier, with 60% and 40% of the dataset respectively.
+```{r cache=TRUE}
+trainingIndices <- createDataPartition(pml.training$classe, p = 0.6, list = F)
+trainingSet <- pml.training[trainingIndices,]
+testingSet <- pml.training[-trainingIndices,]
+```
+
+Training the classifier:
+```{r cache=TRUE, warning=FALSE}
+tree <- train(classe~.,trainingSet,method="C5.0Rules",preProcess=c("center","scale"))
+```
+
+## Expected out of sample error
+Now that the tree is built, lets validate it using the testing set from the cross-validation.
+```{r cache=TRUE}
+confusionMatrix(testingSet$classe, predict(tree, testingSet))
+```
+The accuracy of the model trained is 95.7%. That is, we expect the out of sample error to be 4.3%.
+
+## Prediction of 20 test observations
+We will use the validated tree to predict the class of 20 test observations
+```{r}
+predict(tree,pml.testing)
+```
